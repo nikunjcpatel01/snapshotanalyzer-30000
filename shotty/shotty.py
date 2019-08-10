@@ -6,7 +6,6 @@ session = boto3.Session(profile_name='shotty')
 ec2 = session.resource('ec2')
 
 def filter_instances(project):
-
     instances=[]
 
     if project:
@@ -16,6 +15,10 @@ def filter_instances(project):
         instances=ec2.instances.all()
 
     return instances
+
+def has_pending_snapshot(volume):
+    snapshots=list(volume.snapshots.all())
+    return snapshots and snapshots[0].state == 'pending'
 
 @click.group()
 def cli():
@@ -94,6 +97,9 @@ def create_snapshots(project):
         i.wait_until_stopped()
 
         for v in i.volumes.all():
+            if has_pending_snapshot(v):
+                print("Skipping {0}, snapshot already in progress".format(v.id))
+                continue
             print("Creating snapshot of {0}".format(v.id))
             v.create_snapshot(Description="Created by snapshotAnalyzer 30000")
 
